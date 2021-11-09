@@ -69,6 +69,22 @@ st.write(
     )
 
 
+example_multi = st.multiselect(
+        'All selections can also be done inline',
+        [
+            'for',
+            'example',
+            'this',
+            'multiselect'
+        ],
+        [
+            'for',
+            'example',
+            'this',
+            'multiselect'
+        ]
+    )
+
 example_x = np.arange(0, 100, 1)
 example_y = np.random.normal(0, 1, 100)
 
@@ -79,3 +95,5 @@ example_plot = px.line(
     title = 'Example plot'
 )
 st.plotly_chart(example_plot)
+
+st.write('Es werden mehrere Plots auf der finalen Website sein, für Demonstrationszwecke reicht aber ein einzelner aus.')
