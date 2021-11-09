@@ -1,31 +1,22 @@
-import datetime as dt
 import streamlit as st
 
 import pandas as pd
 import numpy as np
 
-import numerapi
-
 import plotly.express as px
 
 # setup backend
-napi = numerapi.NumerAPI()
 
 # setup website
 st.set_page_config(page_title = 'dko Concept')
 st.title('Concept: Numerai Dashboard')
 
 ## Reputation
-st.header('Reputation')
+st.header('Explanation: what is numerai?')
 
 st.write(
     '''
-    The reputation is the weighted average of correlation over the previous 20 rounds.
-    The plots are interactive, which means you can:
-    - zoom
-    - scroll
-    - hover over datapoints to get more information
-    - ADD MORE
+    Here we're going to explain the basics of the numerai tournament and what we're going with this webite.
     '''
 )
 
@@ -35,172 +26,56 @@ with st.sidebar:
     st.write('Settings and Selctions go here.')
     st.write(
         '''
-        There are different t ASDFAFA: 
+        There are different ways to select data: 
         - Checkbox
         - Multiselect
         - Dropdowns
+
+        Possible selections: model, metric, timeframe, round, etc.
         '''
         )
-    hover_mode = st.checkbox('Detailed hover mode')
 
-
-selected_models_rep = st.multiselect(
-    'Select models for reputation analysis:', 
-    [
-        'xdf8_0',
-        'xdf8_2',
-        'kenfus_1',
-        'kenfus_3', 
-        'kenfus_2', 
-        'kenfus_4',
-        'kenfus'
-    ],
-    ['xdf8_0', 'xdf8_2', 'kenfus']
-)
-
-rep_dfs = []
-
-for model in selected_models_rep:
-    df_model_rank_rep = pd.DataFrame(napi.daily_model_performances(model))
-    df_model_rank_rep['model'] = model
-    rep_dfs.append(df_model_rank_rep)
-
-rep_dfs = pd.concat(rep_dfs)
-
-## Correlation Reputation
-st.write('### Correlation Reputation')
-
-corr_rep_plot = px.line(
-    rep_dfs, 
-    x = 'date',  
-    y = 'corrRep',
-    color = 'model', 
-    title = 'Correlation reputation over time'
-)
-
-if hover_mode:
-    corr_rep_plot.update_layout(hovermode = 'x')
-
-corr_rep_plot.update_layout(
-    xaxis = dict(
-        rangeselector = dict(
-            buttons = list([
-                dict(count = 7,
-                     label = "1w",
-                     step = "day",
-                     stepmode = "backward"),
-                dict(count = 1,
-                     label = "1m",
-                     step = "month",
-                     stepmode = "backward"),
-                dict(step = "all")
-            ]),
-            bgcolor = 'black'
-        )
+    example_checkbox = st.checkbox('This is a checkbox')
+    
+    example_multi = st.multiselect(
+        'This is a multiselect',
+        [
+            'these',
+            'are',
+            'the',
+            'possible',
+            'selections'
+        ],
+        [
+            'these',
+            'are',
+            'the',
+            'possible',
+            'selections'
+        ]
     )
-)
 
-st.plotly_chart(corr_rep_plot)
+    st.selectbox('This is a selectbox', ['select', 'some', 'value'])
 
-## MMC Reputation
-st.write('### MMC Reputation')
 
-mmc_rep_plot = px.line(
-    rep_dfs, 
-    x = 'date',  
-    y = 'corrRep',
-    color = 'model', 
-    title = 'MMC reputation over time'
-)
 
-if hover_mode:
-    mmc_rep_plot.update_layout(hovermode = 'x')
-
-mmc_rep_plot.update_layout(
-    xaxis = dict(
-        rangeselector = dict(
-            buttons = list([
-                dict(count = 7,
-                     label = "1w",
-                     step = "day",
-                     stepmode = "backward"),
-                dict(count = 1,
-                     label = "1m",
-                     step = "month",
-                     stepmode = "backward"),
-                dict(step = "all")
-            ]),
-            bgcolor = 'black'
-        )
+st.write(
+    '''
+    ### Correlation Reputation
+    The main component of the website/analysis are going to be plots. 
+    They're going to be interactive, which means you can zoom, select a specific area, 
+    change the axis, save the plot to disk and much more.
+    '''
     )
+
+
+example_x = np.arange(0, 100, 1)
+example_y = np.random.normal(0, 1, 100)
+
+st.write('## Example plot')
+example_plot = px.line(
+    x = example_x, 
+    y = example_y,
+    title = 'Example plot'
 )
-
-st.plotly_chart(mmc_rep_plot)
-
-
-# COMPARE MULTIPLE MODELS OVER ONE ROUND
-st.header('Daily Scores')
-
-selected_models_daily = st.multiselect(
-    'Select models for daily score analysis:', 
-    [
-        'xdf8_0',
-        'xdf8_2',
-        'kenfus_1',
-        'kenfus_3', 
-        'kenfus_2', 
-        'kenfus_4',
-        'kenfus'
-    ],
-    ['xdf8_0', 'xdf8_2', 'kenfus']
-)
-
-daily_dfs = []
-
-for model in selected_models_daily:
-    df_model_daily = pd.DataFrame(napi.daily_submissions_performances(model))
-    df_model_daily['model'] = model
-    daily_dfs.append(df_model_daily)
-
-daily_dfs = pd.concat(daily_dfs).sort_values('date')
-
-selected_round_daily = st.selectbox('Select round:', daily_dfs['roundNumber'].unique())
-
-st.dataframe(daily_dfs[daily_dfs['roundNumber'] == selected_round_daily])
-
-daily_score_plot = px.line(
-    daily_dfs[daily_dfs['roundNumber'] == selected_round_daily], 
-    x = 'date',  
-    y = 'correlation',
-    color = 'model', 
-    title = f'Correlation in round {selected_round_daily}'
-)
-
-if hover_mode:
-    daily_score_plot.update_layout(hovermode = 'x')
-
-# USE THIS FOR COMPARING ONE MODEL BUT MULTIPLE ROUNDS
-
-min_date = daily_dfs[daily_dfs['roundNumber'] == selected_round_daily]['date'].min()
-max_date = daily_dfs[daily_dfs['roundNumber'] == selected_round_daily]['date'].max()
-delta_days = (max_date - min_date).days
-
-daily_score_plot.update_layout(
-    xaxis=dict(
-        rangeselector=dict(
-            buttons=list([
-                dict(count = delta_days,
-                     label = "round",
-                     step = "day",
-                     stepmode = "backward"),
-                dict(count = 7,
-                     label = "1 week",
-                     step = "day",
-                     stepmode = "backward")
-            ]),
-            bgcolor = 'black'
-        )
-    )
-)
-
-st.plotly_chart(daily_score_plot)
+st.plotly_chart(example_plot)
