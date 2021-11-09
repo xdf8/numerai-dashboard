@@ -12,8 +12,8 @@ import plotly.express as px
 napi = numerapi.NumerAPI()
 
 # setup website
-st.set_page_config(page_title = 'Numerai Dashboard')
-st.title('Numerai Dashboard')
+st.set_page_config(page_title = 'dko Concept')
+st.title('Concept: Numerai Dashboard')
 
 ## Reputation
 st.header('Reputation')
@@ -31,8 +31,16 @@ st.write(
 
 
 with st.sidebar:
-    st.header('Global Settings')
-    st.write('Graphs')
+    st.header('Sidebar')
+    st.write('Settings and Selctions go here.')
+    st.write(
+        '''
+        There are different t ASDFAFA: 
+        - Checkbox
+        - Multiselect
+        - Dropdowns
+        '''
+        )
     hover_mode = st.checkbox('Detailed hover mode')
 
 
