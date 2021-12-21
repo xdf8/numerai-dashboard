@@ -11,6 +11,10 @@ import plotly.express as px
 # setup backend
 #napi = numerapi.SignalsAPI(secret_key = "JJWK2ZWDRU3IGE55U33ZHRN6SDRDDP25KAFP66NULNU6JFEQH776MS4FLCE5GRA4", public_id = "MSDMKBBMHC4O2H6IT64VNRXMA3JYRAFJ")
 napi = numerapi.SignalsAPI()
+MODELS_TO_CHECK = ['kenfus', 'kenfus_drop', 'kenfus_t_500', 'kenfus_t_500_drop', 'kenfus_t_600', 'kenfus_t_600_drop', 'kenfus_frac_diff', 'kenfus_t_700', 'kenfus_t_800', 'kenfus_t_900', 'kenfus_t_ensemble_1']
+DEFAULT_MODELS = ['kenfus']
+ROUNDS_TO_SHOW = 20
+
 
 # setup website
 st.set_page_config(page_title = 'Numerai Dashboard')
@@ -30,8 +34,6 @@ st.write(
     '''
 )
 
-leaderboard_df = pd.DataFrame(napi.get_leaderboard(limit = 10_000))
-model_list = leaderboard_df['username'].sort_values().to_list()
 
 with st.sidebar:
     st.header('Global Settings')
@@ -40,8 +42,8 @@ with st.sidebar:
 
     selected_models_rep = st.multiselect(
         'Select models for reputation analysis:', 
-        model_list,
-        ['kenfus', 'kenfus_drop']
+        MODELS_TO_CHECK,
+        DEFAULT_MODELS
     )
 
 rep_dfs = []
@@ -129,28 +131,23 @@ st.header('Daily Scores')
 
 selected_models_daily = st.multiselect(
     'Select models for daily score analysis:', 
-    [
-        'xdf8_0',
-        'xdf8_2',
-        'kenfus_1',
-        'kenfus_3', 
-        'kenfus_2', 
-        'kenfus_4',
-        'kenfus'
-    ],
-    ['xdf8_0', 'xdf8_2', 'kenfus']
+    MODELS_TO_CHECK,
+    DEFAULT_MODELS
 )
 
 daily_dfs = []
 
 for model in selected_models_daily:
     df_model_daily = pd.DataFrame(napi.daily_submissions_performances(model))
-    df_model_daily['model'] = model
-    daily_dfs.append(df_model_daily)
+    df_model_daily = df_model_daily.dropna(subset=['date'])
+    if not df_model_daily.empty:
+        df_model_daily['model'] = model
+        daily_dfs.append(df_model_daily)
 
-daily_dfs = pd.concat(daily_dfs).sort_values('date')
+daily_dfs = pd.concat(daily_dfs)
+daily_dfs = daily_dfs.dropna(axis=1, how='all')
 
-selected_round_daily = st.selectbox('Select round:', daily_dfs['roundNumber'].unique())
+selected_round_daily = st.selectbox('Select round:', daily_dfs.sort_values(by='roundNumber', ascending=False)['roundNumber'].unique()[:ROUNDS_TO_SHOW])
 
 st.dataframe(daily_dfs[daily_dfs['roundNumber'] == selected_round_daily])
 
