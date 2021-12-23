@@ -9,7 +9,6 @@ import numerapi
 import plotly.express as px
 
 # setup backend
-#napi = numerapi.SignalsAPI(secret_key = "JJWK2ZWDRU3IGE55U33ZHRN6SDRDDP25KAFP66NULNU6JFEQH776MS4FLCE5GRA4", public_id = "MSDMKBBMHC4O2H6IT64VNRXMA3JYRAFJ")
 napi = numerapi.SignalsAPI()
 MODELS_TO_CHECK = leaderboard_df = pd.DataFrame(napi.get_leaderboard(limit = 10_000))
 MODELS_TO_CHECK = leaderboard_df['username'].sort_values().to_list()
@@ -68,13 +67,13 @@ with st.sidebar:
     )
     st.write('# Returns')
     cum_corr = st.checkbox('Cumulative returns')
-    corr_multi = st.multiselect(
+    corr_multi = st.selectbox(
         'Select multiplier for correlation', 
         [0.5, 1, 2],
         2,
     )
 
-    mmc_multi = st.multiselect(
+    mmc_multi = st.selectbox(
         'Select multiplier for MMC', 
         [0.5, 1, 2, 3],
         3
