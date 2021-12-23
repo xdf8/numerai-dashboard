@@ -20,31 +20,64 @@ ROUNDS_TO_SHOW = 20
 # setup website
 st.set_page_config(page_title = 'Numerai Dashboard')
 st.title('Numerai Dashboard')
-
-## Reputation
-st.header('Reputation')
-
 st.write(
     '''
-    The reputation is the weighted average of correlation over the previous 20 rounds.
-    The plots are interactive, which means you can:
-    - zoom
-    - scroll
-    - hover over datapoints to get more information
-    - ADD MORE
+    The Numerai Tournament is where you build machine learning models on abstract financial data to predict the stock market. Your models can be staked with the NMR cryptocurrency to earn rewards based on performance.
+    '''
+)
+st.header('Scoring')
+st.write(
+    '''
+    You are primarily scored on the correlation (`corr`) between your predictions and the targets. 
+    You are also scored on `mmc`. The higher the correlation the better for both.
+    '''
+)
+st.subheader('MMC')
+st.write(
+    '''
+    Each user is incentivized to maximize their individual correlation score. But Numerai wants to maximize the meta model's correlation score, where the meta model is the stake weighted ensemble of all submissions.
+    Meta model contribution `mmc` is designed to bridge this gap. Whereas correlation rewards individual performance, `mmc` rewards contribution to the meta model's correlation or group performance.
+    '''
+)
+## Reputation
+st.header('Reputation')
+st.subheader('Motivation')
+st.write(
+    '''
+    Long term performance is key.
+    While your payouts depend on your performance in a single round, your reputation and rank depends on your performance over 20 rounds.
+    '''
+)
+st.subheader('Calculation')
+st.write(
+    '''
+    Your reputation for `corr` and `mmc` on round n is a weighted average of that metric over the past 20 rounds including rounds that are currently resolving.
     '''
 )
 
 
 with st.sidebar:
-    st.header('Global Settings')
-    st.write('Graphs')
+    st.header('Settings')
+    st.write('# Graphs')
     hover_mode = st.checkbox('Detailed hover mode')
 
     selected_models = st.multiselect(
         'Select models for reputation analysis:', 
         MODELS_TO_CHECK,
         DEFAULT_MODELS
+    )
+    st.write('# Returns')
+    cum_corr = st.checkbox('Cumulative returns')
+    corr_multi = st.multiselect(
+        'Select multiplier for correlation', 
+        [0.5, 1, 2],
+        2,
+    )
+
+    mmc_multi = st.multiselect(
+        'Select multiplier for MMC', 
+        [0.5, 1, 2, 3],
+        3
     )
 
     
@@ -123,9 +156,25 @@ st.plotly_chart(mmc_rep_plot)
 
 
 # Correlation over time
+st.header('Returns')
+st.subheader('MMC & Correlation')
+st.write(
+    '''
+    For MMC and Correlation we can select a multiplier to calculate our returns for that specific round. The correlation or MMC is then multiplied by the selected number.
+    - For Correlation, we can select between  `0.5`, `1` and `2`.
+    - For MMC, we can select between `0`, `0.5`, `1`, `2` and `3`.
+    '''
+    )
+st.subheader('Example')
+st.write(
+    '''
+    We have archieved a correlation and MMC of 0.05 this round and have selected the highest multiplier for both: `0.05 * 2 + 0.05 * 3 = 0.25`. 
+    
+    Thus, our return for this week is 25%.
+    '''
+)
 
-st.header('Model Scores')
-
+st.subheader('Graphs')
 score_dfs = []
 
 for model in selected_models:
@@ -133,8 +182,7 @@ for model in selected_models:
     df_model_score = df_model_score.dropna(subset=['date'])
     df_model_score = df_model_score.sort_values(['date', 'roundNumber'], ascending = True)
     df_model_score = df_model_score.groupby('roundNumber').last().reset_index()[['roundNumber', 'date', 'correlation', 'mmc']]
-    df_model_score['corr_cumsum'] = df_model_score['correlation'].cumsum()
-    df_model_score['mmc_cumsum'] = df_model_score['mmc'].cumsum()
+    df_model_score['returns'] = corr_multi * df_model_score['correlation'] + mmc_multi*df_model_score['mmc']
     df_model_score['model'] = model
 
     if not df_model_score.empty:
@@ -142,44 +190,43 @@ for model in selected_models:
         score_dfs.append(df_model_score)
 
 score_dfs = pd.concat(score_dfs)
-#daily_dfs = daily_dfs.dropna(axis=1, how='all')
-cum_corr = st.checkbox('Cumulative correlation')
 
-if not cum_corr:
-    corr_score_plot = px.line(
-        score_dfs, 
-        x = 'roundNumber',  
-        y = 'correlation',
-        color = 'model', 
-        title = f'Correlation in round {69}'
-    )
+round_start_calc = st.slider(
+    'Select starting round to calculate returns.', 
+    int(score_dfs['roundNumber'].min()),
+    int(score_dfs['roundNumber'].max())
+)
 
-else:
-    corr_score_plot = px.line(
-        score_dfs, 
-        x = 'roundNumber',  
-        y = 'corr_cumsum',
-        color = 'model', 
-        title = f'Correlation in round {69}'
-    )
+score_dfs = score_dfs[score_dfs['roundNumber']>=round_start_calc]
 
-if not cum_corr:
-    mmc_score_plot = px.line(
-        score_dfs, 
-        x = 'roundNumber',  
-        y = 'mmc',
-        color = 'model', 
-        title = f'Correlation in round {69}'
-    )
+score_dfs['corr_cumsum'] = score_dfs.groupby(['model'])['correlation'].cumsum()
+score_dfs['mmc_cumsum'] = score_dfs.groupby(['model'])['mmc'].cumsum()
+score_dfs['returns_cumsum'] = score_dfs.groupby(['model'])['returns'].cumsum()
 
-else:
-    mmc_score_plot = px.line(
-        score_dfs, 
-        x = 'roundNumber',  
-        y = 'mmc_cumsum',
-        color = 'model', 
-        title = f'Correlation in round {69}'
-    )
+returns_plot = px.line(
+    score_dfs, 
+    x = 'roundNumber',  
+    y = 'returns_cumsum' if cum_corr else 'returns',
+    color = 'model', 
+    title = f'{"Cumulative r" if cum_corr else "R"}eturns after round {round_start_calc}'
+)
 
+corr_score_plot = px.line(
+    score_dfs, 
+    x = 'roundNumber',  
+    y = 'corr_cumsum' if cum_corr else 'correlation',
+    color = 'model', 
+    title = f'{"Cumulative c" if cum_corr else "C"}orrelation after round {round_start_calc}'
+)
+
+mmc_score_plot = px.line(
+    score_dfs, 
+    x = 'roundNumber',  
+    y = 'mmc_cumsum' if cum_corr else 'mmc',
+    color = 'model', 
+    title = f'{"Cumulative " if cum_corr else ""}MMC after round {round_start_calc}'
+)
+
+st.plotly_chart(returns_plot)
 st.plotly_chart(corr_score_plot)
 st.plotly_chart(mmc_score_plot)
