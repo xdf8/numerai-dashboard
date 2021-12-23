@@ -11,8 +11,9 @@ import plotly.express as px
 # setup backend
 #napi = numerapi.SignalsAPI(secret_key = "JJWK2ZWDRU3IGE55U33ZHRN6SDRDDP25KAFP66NULNU6JFEQH776MS4FLCE5GRA4", public_id = "MSDMKBBMHC4O2H6IT64VNRXMA3JYRAFJ")
 napi = numerapi.SignalsAPI()
-MODELS_TO_CHECK = ['kenfus', 'kenfus_drop', 'kenfus_t_500', 'kenfus_t_500_drop', 'kenfus_t_600', 'kenfus_t_600_drop', 'kenfus_frac_diff', 'kenfus_t_700', 'kenfus_t_800', 'kenfus_t_900', 'kenfus_t_ensemble_1']
-DEFAULT_MODELS = ['kenfus']
+MODELS_TO_CHECK = leaderboard_df = pd.DataFrame(napi.get_leaderboard(limit = 10_000))
+MODELS_TO_CHECK = leaderboard_df['username'].sort_values().to_list()
+DEFAULT_MODELS = ['kenfus', 'kenfus_drop']
 ROUNDS_TO_SHOW = 20
 
 
@@ -40,17 +41,20 @@ with st.sidebar:
     st.write('Graphs')
     hover_mode = st.checkbox('Detailed hover mode')
 
-    selected_models_rep = st.multiselect(
+    selected_models = st.multiselect(
         'Select models for reputation analysis:', 
         MODELS_TO_CHECK,
         DEFAULT_MODELS
     )
 
+    
+
 rep_dfs = []
 
-for model in selected_models_rep:
+for model in selected_models:
     df_model_rank_rep = pd.DataFrame(napi.daily_model_performances(model))
     df_model_rank_rep['model'] = model
+    #df_model_rank_rep.sort_values('')
     rep_dfs.append(df_model_rank_rep)
 
 rep_dfs = pd.concat(rep_dfs)
@@ -73,10 +77,6 @@ corr_rep_plot.update_layout(
     xaxis = dict(
         rangeselector = dict(
             buttons = list([
-                dict(count = 7,
-                     label = "1w",
-                     step = "day",
-                     stepmode = "backward"),
                 dict(count = 1,
                      label = "1m",
                      step = "month",
@@ -108,10 +108,6 @@ mmc_rep_plot.update_layout(
     xaxis = dict(
         rangeselector = dict(
             buttons = list([
-                dict(count = 7,
-                     label = "1w",
-                     step = "day",
-                     stepmode = "backward"),
                 dict(count = 1,
                      label = "1m",
                      step = "month",
@@ -126,64 +122,64 @@ mmc_rep_plot.update_layout(
 st.plotly_chart(mmc_rep_plot)
 
 
-# COMPARE MULTIPLE MODELS OVER ONE ROUND
-st.header('Daily Scores')
+# Correlation over time
 
-selected_models_daily = st.multiselect(
-    'Select models for daily score analysis:', 
-    MODELS_TO_CHECK,
-    DEFAULT_MODELS
-)
+st.header('Model Scores')
 
-daily_dfs = []
+score_dfs = []
 
-for model in selected_models_daily:
-    df_model_daily = pd.DataFrame(napi.daily_submissions_performances(model))
-    df_model_daily = df_model_daily.dropna(subset=['date'])
-    if not df_model_daily.empty:
-        df_model_daily['model'] = model
-        daily_dfs.append(df_model_daily)
+for model in selected_models:
+    df_model_score = pd.DataFrame(napi.daily_submissions_performances(model))
+    df_model_score = df_model_score.dropna(subset=['date'])
+    df_model_score = df_model_score.sort_values(['date', 'roundNumber'], ascending = True)
+    df_model_score = df_model_score.groupby('roundNumber').last().reset_index()[['roundNumber', 'date', 'correlation', 'mmc']]
+    df_model_score['corr_cumsum'] = df_model_score['correlation'].cumsum()
+    df_model_score['mmc_cumsum'] = df_model_score['mmc'].cumsum()
+    df_model_score['model'] = model
 
-daily_dfs = pd.concat(daily_dfs)
-daily_dfs = daily_dfs.dropna(axis=1, how='all')
+    if not df_model_score.empty:
+        df_model_score['model'] = model
+        score_dfs.append(df_model_score)
 
-selected_round_daily = st.selectbox('Select round:', daily_dfs.sort_values(by='roundNumber', ascending=False)['roundNumber'].unique()[:ROUNDS_TO_SHOW])
+score_dfs = pd.concat(score_dfs)
+#daily_dfs = daily_dfs.dropna(axis=1, how='all')
+cum_corr = st.checkbox('Cumulative correlation')
 
-st.dataframe(daily_dfs[daily_dfs['roundNumber'] == selected_round_daily])
-
-daily_score_plot = px.line(
-    daily_dfs[daily_dfs['roundNumber'] == selected_round_daily], 
-    x = 'date',  
-    y = 'correlation',
-    color = 'model', 
-    title = f'Correlation in round {selected_round_daily}'
-)
-
-if hover_mode:
-    daily_score_plot.update_layout(hovermode = 'x')
-
-# USE THIS FOR COMPARING ONE MODEL BUT MULTIPLE ROUNDS
-
-min_date = daily_dfs[daily_dfs['roundNumber'] == selected_round_daily]['date'].min()
-max_date = daily_dfs[daily_dfs['roundNumber'] == selected_round_daily]['date'].max()
-delta_days = (max_date - min_date).days
-
-daily_score_plot.update_layout(
-    xaxis=dict(
-        rangeselector=dict(
-            buttons=list([
-                dict(count = delta_days,
-                     label = "round",
-                     step = "day",
-                     stepmode = "backward"),
-                dict(count = 7,
-                     label = "1 week",
-                     step = "day",
-                     stepmode = "backward")
-            ]),
-            bgcolor = 'black'
-        )
+if not cum_corr:
+    corr_score_plot = px.line(
+        score_dfs, 
+        x = 'roundNumber',  
+        y = 'correlation',
+        color = 'model', 
+        title = f'Correlation in round {69}'
     )
-)
 
-st.plotly_chart(daily_score_plot)
+else:
+    corr_score_plot = px.line(
+        score_dfs, 
+        x = 'roundNumber',  
+        y = 'corr_cumsum',
+        color = 'model', 
+        title = f'Correlation in round {69}'
+    )
+
+if not cum_corr:
+    mmc_score_plot = px.line(
+        score_dfs, 
+        x = 'roundNumber',  
+        y = 'mmc',
+        color = 'model', 
+        title = f'Correlation in round {69}'
+    )
+
+else:
+    mmc_score_plot = px.line(
+        score_dfs, 
+        x = 'roundNumber',  
+        y = 'mmc_cumsum',
+        color = 'model', 
+        title = f'Correlation in round {69}'
+    )
+
+st.plotly_chart(corr_score_plot)
+st.plotly_chart(mmc_score_plot)
