@@ -228,3 +228,4 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,jupyternotebooks,python,visualstudiocode,windows
+scrapbook.ipynb

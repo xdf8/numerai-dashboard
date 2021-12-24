@@ -3,7 +3,7 @@ import streamlit as st
 
 import pandas as pd
 import numpy as np
-
+import plotly.graph_objects as go
 import numerapi
 
 import plotly.express as px
@@ -12,7 +12,7 @@ import plotly.express as px
 napi = numerapi.SignalsAPI()
 MODELS_TO_CHECK = leaderboard_df = pd.DataFrame(napi.get_leaderboard(limit = 10_000))
 MODELS_TO_CHECK = leaderboard_df['username'].sort_values().to_list()
-DEFAULT_MODELS = ['kenfus', 'kenfus_drop']
+DEFAULT_MODELS = ['kenfus', 'kenfus_drop', 'kenfus_t_500']
 ROUNDS_TO_SHOW = 20
 
 
@@ -22,13 +22,20 @@ st.title('Numerai Dashboard')
 st.write(
     '''
     The Numerai Tournament is where you build machine learning models on abstract financial data to predict the stock market. Your models can be staked with the NMR cryptocurrency to earn rewards based on performance.
+    To decide which model is best, you need to compare them on different criteria. This is why we built this dashboard. 
+    '''
+)
+st.subheader('Motivation')
+st.write(
+    '''
+    To decide which model is best, you need to compare them on different criteria. This is why we built this dashboard. 
     '''
 )
 st.header('Scoring')
 st.write(
     '''
-    You are primarily scored on the correlation (`corr`) between your predictions and the targets. 
-    You are also scored on `mmc`. The higher the correlation the better for both.
+    You are primarily scored on the correlation `corr` between your predictions and the targets. 
+    You are also scored on meta model contribution `mmc`. The higher the better.
     '''
 )
 st.subheader('MMC')
@@ -66,13 +73,7 @@ with st.sidebar:
         DEFAULT_MODELS
     )
     st.write('# Returns')
-    cum_corr = st.checkbox('Cumulative returns')
-    corr_multi = st.selectbox(
-        'Select multiplier for correlation', 
-        [0.5, 1, 2],
-        2,
-    )
-
+    cum_corr = st.checkbox('Cumulative returns', value=True)
     mmc_multi = st.selectbox(
         'Select multiplier for MMC', 
         [0.5, 1, 2, 3],
@@ -160,7 +161,7 @@ st.subheader('MMC & Correlation')
 st.write(
     '''
     For MMC and Correlation we can select a multiplier to calculate our returns for that specific round. The correlation or MMC is then multiplied by the selected number.
-    - For Correlation, we can select between  `0.5`, `1` and `2`.
+    - For Correlation, the multiplier is currently fixed at `2`.
     - For MMC, we can select between `0`, `0.5`, `1`, `2` and `3`.
     '''
     )
@@ -181,7 +182,7 @@ for model in selected_models:
     df_model_score = df_model_score.dropna(subset=['date'])
     df_model_score = df_model_score.sort_values(['date', 'roundNumber'], ascending = True)
     df_model_score = df_model_score.groupby('roundNumber').last().reset_index()[['roundNumber', 'date', 'correlation', 'mmc']]
-    df_model_score['returns'] = corr_multi * df_model_score['correlation'] + mmc_multi*df_model_score['mmc']
+    df_model_score['returns'] = 2 * df_model_score['correlation'] + mmc_multi*df_model_score['mmc']
     df_model_score['model'] = model
 
     if not df_model_score.empty:
@@ -206,26 +207,66 @@ returns_plot = px.line(
     score_dfs, 
     x = 'roundNumber',  
     y = 'returns_cumsum' if cum_corr else 'returns',
-    color = 'model', 
-    title = f'{"Cumulative r" if cum_corr else "R"}eturns after round {round_start_calc}'
+    color = 'model'
 )
 
 corr_score_plot = px.line(
     score_dfs, 
     x = 'roundNumber',  
     y = 'corr_cumsum' if cum_corr else 'correlation',
-    color = 'model', 
-    title = f'{"Cumulative c" if cum_corr else "C"}orrelation after round {round_start_calc}'
+    color = 'model'
 )
+
 
 mmc_score_plot = px.line(
     score_dfs, 
     x = 'roundNumber',  
     y = 'mmc_cumsum' if cum_corr else 'mmc',
-    color = 'model', 
-    title = f'{"Cumulative " if cum_corr else ""}MMC after round {round_start_calc}'
+    color = 'model'
 )
 
+# Bar plot
+colors = [
+    '#1f77b4',  # muted blue
+    '#ff7f0e',  # safety orange
+    '#2ca02c',  # cooked asparagus green
+    '#d62728',  # brick red
+    '#9467bd',  # muted purple
+    '#8c564b',  # chestnut brown
+    '#e377c2',  # raspberry yogurt pink
+    '#7f7f7f',  # middle gray
+    '#bcbd22',  # curry yellow-green
+    '#17becf'   # blue-teal
+]
+colors = 5*colors
+
+
+melted = score_dfs.melt(id_vars=['roundNumber', 'model', 'date'])
+melted = melted[melted.variable.isin(['mmc', 'correlation'])]
+melted['color_idx'] = melted.groupby(['model', 'variable']).ngroup()
+melted['color'] = melted['color_idx'].apply(lambda x: colors[x])
+
+corr_mmc_bar = go.Figure()
+for i, model in enumerate(selected_models):
+    melted_tmp = melted[melted.model==model]
+    corr_mmc_bar.add_trace(go.Bar(
+        x=melted_tmp.roundNumber,
+        y=melted_tmp.value,
+        text=melted_tmp.variable,
+        name=model,
+        textposition='none',
+        marker_color=melted_tmp.color
+    )
+    )
+
+st.subheader(f'Correlation and MMC per Round per Model')
+st.plotly_chart(corr_mmc_bar)
+
+st.subheader(f'{"Cumulative r" if cum_corr else "R"}eturns after round {round_start_calc}')
 st.plotly_chart(returns_plot)
+
+st.subheader(f'{"Cumulative c" if cum_corr else "C"}orrelation after round {round_start_calc}')
 st.plotly_chart(corr_score_plot)
+
+st.subheader(f'{"Cumulative " if cum_corr else ""}MMC after round {round_start_calc}')
 st.plotly_chart(mmc_score_plot)
