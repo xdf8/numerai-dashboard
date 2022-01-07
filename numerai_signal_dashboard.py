@@ -44,13 +44,12 @@ st.title('Numerai Dashboard')
 st.write(
     '''
     The Numerai Tournament is where you build machine learning models on abstract financial data to predict the stock market. Your models can be staked with the NMR cryptocurrency to earn rewards based on performance.
-    To decide which model is best, you need to compare them on different criteria. This is why we built this dashboard. 
     '''
 )
 st.subheader('Motivation')
 st.write(
     '''
-    To decide which model is best, you need to compare them on different criteria. This is why we built this dashboard. 
+    To decide which model is best, you need to compare them on different criteria. On the [official leaderboard](https://signals.numer.ai/tournament), this is difficult to do.
     '''
 )
 st.header('Scoring')
