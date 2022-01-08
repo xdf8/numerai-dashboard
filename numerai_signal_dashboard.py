@@ -208,6 +208,7 @@ for model in selected_models:
     df_model_score['returns'] = 2 * df_model_score['correlation'] + mmc_multi*df_model_score['mmc']
     df_model_score['model'] = model
 
+
     if not df_model_score.empty:
         df_model_score['model'] = model
         score_dfs.append(df_model_score)
@@ -228,6 +229,9 @@ score_dfs = score_dfs[score_dfs['roundNumber']>=round_start_calc]
 score_dfs['corr_cumsum'] = score_dfs.groupby(['model'])['correlation'].cumsum()
 score_dfs['mmc_cumsum'] = score_dfs.groupby(['model'])['mmc'].cumsum()
 score_dfs['returns_cumsum'] = score_dfs.groupby(['model'])['returns'].cumsum()
+score_dfs['returns_corr'] = 2 * score_dfs['corr_cumsum']
+score_dfs['returns_mmc'] = mmc_multi * score_dfs['mmc_cumsum']
+
 
 returns_plot = px.line(
     score_dfs, 
@@ -242,7 +246,6 @@ corr_score_plot = px.line(
     y = 'corr_cumsum' if cum_corr else 'correlation',
     color = 'model'
 )
-
 
 mmc_score_plot = px.line(
     score_dfs, 
@@ -272,18 +275,28 @@ melted = melted[melted.variable.isin(['mmc', 'correlation'])]
 melted['color_idx'] = melted.groupby(['model', 'variable']).ngroup()
 melted['color'] = melted['color_idx'].apply(lambda x: colors[x])
 
+# Current returns
 corr_mmc_bar = go.Figure()
 for i, model in enumerate(selected_models):
     melted_tmp = melted[melted.model==model]
-    corr_mmc_bar.add_trace(go.Bar(
+    corr_mmc_bar.add_trace(
+        go.Bar(
         x=melted_tmp.roundNumber,
         y=melted_tmp.value,
         text=melted_tmp.variable,
         name=model,
         textposition='none',
         marker_color=melted_tmp.color
+        )
     )
-    )
+
+# Cummulative returns
+curr_returns_df = score_dfs.groupby('model').tail(1)
+curr_returns_plot = px.bar(curr_returns_df, x="model", y=["returns_corr", "returns_mmc"])
+
+# Plots
+st.subheader(f'Cumulative returns per Model')
+st.plotly_chart(curr_returns_plot)
 
 st.subheader(f'Correlation and MMC per Round per Model')
 st.plotly_chart(corr_mmc_bar)
