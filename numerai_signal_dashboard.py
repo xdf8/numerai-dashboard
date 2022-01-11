@@ -11,15 +11,11 @@ import plotly.express as px
 from utils import *
 
 
-# Get lastest resolved round: 
-RESOLVED_ROUND_MODEL = 'apprentice_key'
-cnapi = CustomNumerAPI()
-round_status = pd.DataFrame(cnapi.get_round_performances(RESOLVED_ROUND_MODEL)).set_index("roundNumber")
-last_resolved_round = round_status[round_status.roundResolved==True].index.max()
+
 
 # setup backend
 napi = numerapi.SignalsAPI()
-MODELS_TO_CHECK = leaderboard_df = pd.DataFrame(napi.get_leaderboard(limit = 10_000))
+leaderboard_df = pd.DataFrame(napi.get_leaderboard(limit = 10_000))
 MODELS_TO_CHECK = leaderboard_df['username'].sort_values().to_list()
 DEFAULT_MODELS = [
     'kenfus', 
@@ -212,6 +208,18 @@ for model in selected_models:
     if not df_model_score.empty:
         df_model_score['model'] = model
         score_dfs.append(df_model_score)
+
+# Get lastest resolved round: 
+RESOLVED_ROUND_MODEL = 'apprentice_key'
+cnapi = CustomNumerAPI()
+try:
+    round_status = pd.DataFrame(cnapi.get_round_performances(RESOLVED_ROUND_MODEL)).set_index("roundNumber")
+    last_resolved_round = round_status[round_status.roundResolved==True].index.max()
+except TypeError as E:
+    # Catch when numerais API is down (happens sometimes) and approximate it
+    round_numbers = np.unique(df_model_score.roundNumber)
+    last_resolved_round = round_numbers[-5]
+    
 
 score_dfs = pd.concat(score_dfs)
 
