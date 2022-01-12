@@ -62,22 +62,6 @@ st.write(
     Meta model contribution `mmc` is designed to bridge this gap. Whereas correlation rewards individual performance, `mmc` rewards contribution to the meta model's correlation or group performance.
     '''
 )
-## Reputation
-st.header('Reputation')
-st.subheader('Motivation')
-st.write(
-    '''
-    Long term performance is key.
-    While your payouts depend on your performance in a single round, your reputation and rank depends on your performance over 20 rounds.
-    '''
-)
-st.subheader('Calculation')
-st.write(
-    '''
-    Your reputation for `corr` and `mmc` on round n is a weighted average of that metric over the past 20 rounds including rounds that are currently resolving.
-    '''
-)
-
 
 with st.sidebar:
     st.header('Settings')
@@ -112,14 +96,12 @@ for model in selected_models:
 rep_dfs = pd.concat(rep_dfs)
 
 ## Correlation Reputation
-st.write('### Correlation Reputation')
 
 corr_rep_plot = px.line(
     rep_dfs, 
     x = 'date',  
     y = 'corrRep',
-    color = 'model', 
-    title = 'Correlation reputation over time'
+    color = 'model'
 )
 
 if hover_mode:
@@ -140,17 +122,12 @@ corr_rep_plot.update_layout(
     )
 )
 
-st.plotly_chart(corr_rep_plot)
-
 ## MMC Reputation
-st.write('### MMC Reputation')
-
 mmc_rep_plot = px.line(
     rep_dfs, 
     x = 'date',  
     y = 'corrRep',
-    color = 'model', 
-    title = 'MMC reputation over time'
+    color = 'model',
 )
 
 if hover_mode:
@@ -170,8 +147,6 @@ mmc_rep_plot.update_layout(
         )
     )
 )
-
-st.plotly_chart(mmc_rep_plot)
 
 
 # Correlation over time
@@ -317,3 +292,25 @@ st.plotly_chart(corr_score_plot)
 
 st.subheader(f'{"Cumulative " if cum_corr else ""}MMC after round {round_start_calc}')
 st.plotly_chart(mmc_score_plot)
+
+## Reputation
+st.header('Reputation')
+st.subheader('Motivation')
+st.write(
+    '''
+    Long term performance is key.
+    While your payouts depend on your performance in a single round, your reputation and rank depends on your performance over 20 rounds. However, this metric is a bit hard to understand and this is why it appears at the bottom of this dashboard.
+    '''
+)
+st.subheader('Calculation')
+st.write(
+    '''
+    Your reputation for `corr` and `mmc` on round n is a weighted average of that metric over the past 20 rounds including rounds that are currently resolving.
+    '''
+)
+
+st.write('### Correlation Reputation')
+st.plotly_chart(corr_rep_plot)
+
+st.write('### MMC Reputation')
+st.plotly_chart(mmc_rep_plot)
