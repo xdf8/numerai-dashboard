@@ -284,7 +284,7 @@ else:
     curr_returns_plot = px.bar(curr_returns_df, x="model", y=["returns_corr_per_round", "returns_mmc_per_round"])
 
 # Plots
-st.subheader('Cumulative returns per Model' if cum_corr else 'Averange returns per round per model')
+st.subheader('Cumulative returns per Model' if cum_corr else 'Average returns per round per model')
 st.plotly_chart(curr_returns_plot)
 
 st.subheader(f'Correlation and MMC per Round per model')
