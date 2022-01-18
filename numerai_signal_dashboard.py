@@ -212,8 +212,11 @@ score_dfs = score_dfs[score_dfs['roundNumber']>=round_start_calc]
 score_dfs['corr_cumsum'] = score_dfs.groupby(['model'])['correlation'].cumsum()
 score_dfs['mmc_cumsum'] = score_dfs.groupby(['model'])['mmc'].cumsum()
 score_dfs['returns_cumsum'] = score_dfs.groupby(['model'])['returns'].cumsum()
+score_dfs['group_size'] = score_dfs.groupby(['model'])['roundNumber'].transform('count')
 score_dfs['returns_corr'] = 2 * score_dfs['corr_cumsum']
 score_dfs['returns_mmc'] = mmc_multi * score_dfs['mmc_cumsum']
+score_dfs['returns_corr_per_round'] = score_dfs['returns_corr']  / score_dfs['group_size']
+score_dfs['returns_mmc_per_round'] = score_dfs['returns_mmc']  / score_dfs['group_size']
 
 
 returns_plot = px.line(
@@ -275,13 +278,16 @@ for i, model in enumerate(selected_models):
 
 # Cummulative returns
 curr_returns_df = score_dfs.groupby('model').tail(1)
-curr_returns_plot = px.bar(curr_returns_df, x="model", y=["returns_corr", "returns_mmc"])
+if cum_corr:
+    curr_returns_plot = px.bar(curr_returns_df, x="model", y=["returns_corr", "returns_mmc"])
+else:
+    curr_returns_plot = px.bar(curr_returns_df, x="model", y=["returns_corr_per_round", "returns_mmc_per_round"])
 
 # Plots
-st.subheader(f'Cumulative returns per Model')
+st.subheader('Cumulative returns per Model' if cum_corr else 'Averange returns per round per model')
 st.plotly_chart(curr_returns_plot)
 
-st.subheader(f'Correlation and MMC per Round per Model')
+st.subheader(f'Correlation and MMC per Round per model')
 st.plotly_chart(corr_mmc_bar)
 
 st.subheader(f'{"Cumulative r" if cum_corr else "R"}eturns after round {round_start_calc}')
