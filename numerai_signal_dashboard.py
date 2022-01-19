@@ -76,7 +76,7 @@ with st.sidebar:
         DEFAULT_MODELS
     )
     st.write('# Returns')
-    cum_corr = st.checkbox('Cumulative returns', value=True)
+    cum_corr = st.checkbox('Cumulative returns')
     mmc_multi = st.selectbox(
         'Select multiplier for MMC', 
         [0.5, 1, 2, 3],
