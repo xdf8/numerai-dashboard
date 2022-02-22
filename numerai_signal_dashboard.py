@@ -19,17 +19,11 @@ leaderboard_df = pd.DataFrame(napi.get_leaderboard(limit = 10_000))
 MODELS_TO_CHECK = leaderboard_df['username'].sort_values().to_list()
 DEFAULT_MODELS = [
     'kenfus', 
-    'kenfus_drop', 
     'kenfus_t_500', 
     'kenfus_t_600', 
-    'kenfus_t_600_drop', 
-    'kenfus_t_900', 
-    'kenfus_t_ensemble_1', 
     'kenfus_t_700', 
     'kenfus_t_800',
-    'kenfus_1_528',
-    'kenfus_frac_diff',
-    'kenfus_1_528_drop'
+    'kenfus_t_900'
     ]
 ROUNDS_TO_SHOW = 20
 
