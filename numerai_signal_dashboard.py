@@ -21,9 +21,7 @@ DEFAULT_MODELS = [
     'kenfus', 
     'kenfus_t_500', 
     'kenfus_t_600', 
-    'kenfus_t_700', 
-    'kenfus_t_800',
-    'kenfus_t_900'
+    'kenfus_t_700'
     ]
 ROUNDS_TO_SHOW = 20
 
@@ -62,7 +60,7 @@ with st.sidebar:
     st.write('# Graphs')
     hover_mode = st.checkbox('Detailed hover mode')
 
-    show_only_resolved_rounds = st.checkbox('Show only resolved rounds')
+    show_only_resolved_rounds = st.checkbox('Show only resolved rounds', value = True)
 
     selected_models = st.multiselect(
         'Select models for reputation analysis:', 
