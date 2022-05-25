@@ -60,7 +60,7 @@ with st.sidebar:
     st.write('# Graphs')
     hover_mode = st.checkbox('Detailed hover mode')
 
-    show_only_resolved_rounds = st.checkbox('Show only resolved rounds', value = True)
+    show_only_resolved_rounds = st.checkbox('Show only resolved rounds', value = False)
 
     selected_models = st.multiselect(
         'Select models for reputation analysis:', 
