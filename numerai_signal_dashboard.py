@@ -8,23 +8,20 @@ import numerapi
 
 import plotly.express as px
 
+from utils import *
+
+
+
+
 # setup backend
 napi = numerapi.SignalsAPI()
-MODELS_TO_CHECK = leaderboard_df = pd.DataFrame(napi.get_leaderboard(limit = 10_000))
+leaderboard_df = pd.DataFrame(napi.get_leaderboard(limit = 10_000))
 MODELS_TO_CHECK = leaderboard_df['username'].sort_values().to_list()
 DEFAULT_MODELS = [
     'kenfus', 
-    'kenfus_drop', 
     'kenfus_t_500', 
     'kenfus_t_600', 
-    'kenfus_t_600_drop', 
-    'kenfus_t_900', 
-    'kenfus_t_ensemble_1', 
-    'kenfus_t_700', 
-    'kenfus_t_800',
-    'kenfus_1_528',
-    'kenfus_frac_diff',
-    'kenfus_1_528_drop'
+    'kenfus_t_700'
     ]
 ROUNDS_TO_SHOW = 20
 
@@ -35,13 +32,12 @@ st.title('Numerai Dashboard')
 st.write(
     '''
     The Numerai Tournament is where you build machine learning models on abstract financial data to predict the stock market. Your models can be staked with the NMR cryptocurrency to earn rewards based on performance.
-    To decide which model is best, you need to compare them on different criteria. This is why we built this dashboard. 
     '''
 )
 st.subheader('Motivation')
 st.write(
     '''
-    To decide which model is best, you need to compare them on different criteria. This is why we built this dashboard. 
+    To decide which model is best, you need to compare them on different criteria. On the [official leaderboard](https://signals.numer.ai/tournament), this is difficult to do.
     '''
 )
 st.header('Scoring')
@@ -58,27 +54,13 @@ st.write(
     Meta model contribution `mmc` is designed to bridge this gap. Whereas correlation rewards individual performance, `mmc` rewards contribution to the meta model's correlation or group performance.
     '''
 )
-## Reputation
-st.header('Reputation')
-st.subheader('Motivation')
-st.write(
-    '''
-    Long term performance is key.
-    While your payouts depend on your performance in a single round, your reputation and rank depends on your performance over 20 rounds.
-    '''
-)
-st.subheader('Calculation')
-st.write(
-    '''
-    Your reputation for `corr` and `mmc` on round n is a weighted average of that metric over the past 20 rounds including rounds that are currently resolving.
-    '''
-)
-
 
 with st.sidebar:
     st.header('Settings')
     st.write('# Graphs')
     hover_mode = st.checkbox('Detailed hover mode')
+
+    show_only_resolved_rounds = st.checkbox('Show only resolved rounds', value = False)
 
     selected_models = st.multiselect(
         'Select models for reputation analysis:', 
@@ -86,7 +68,7 @@ with st.sidebar:
         DEFAULT_MODELS
     )
     st.write('# Returns')
-    cum_corr = st.checkbox('Cumulative returns', value=True)
+    cum_corr = st.checkbox('Cumulative returns')
     mmc_multi = st.selectbox(
         'Select multiplier for MMC', 
         [0.5, 1, 2, 3],
@@ -106,14 +88,12 @@ for model in selected_models:
 rep_dfs = pd.concat(rep_dfs)
 
 ## Correlation Reputation
-st.write('### Correlation Reputation')
 
 corr_rep_plot = px.line(
     rep_dfs, 
     x = 'date',  
     y = 'corrRep',
-    color = 'model', 
-    title = 'Correlation reputation over time'
+    color = 'model'
 )
 
 if hover_mode:
@@ -134,17 +114,12 @@ corr_rep_plot.update_layout(
     )
 )
 
-st.plotly_chart(corr_rep_plot)
-
 ## MMC Reputation
-st.write('### MMC Reputation')
-
 mmc_rep_plot = px.line(
     rep_dfs, 
     x = 'date',  
     y = 'corrRep',
-    color = 'model', 
-    title = 'MMC reputation over time'
+    color = 'model',
 )
 
 if hover_mode:
@@ -164,8 +139,6 @@ mmc_rep_plot.update_layout(
         )
     )
 )
-
-st.plotly_chart(mmc_rep_plot)
 
 
 # Correlation over time
@@ -198,11 +171,27 @@ for model in selected_models:
     df_model_score['returns'] = 2 * df_model_score['correlation'] + mmc_multi*df_model_score['mmc']
     df_model_score['model'] = model
 
+
     if not df_model_score.empty:
         df_model_score['model'] = model
         score_dfs.append(df_model_score)
 
+# Get lastest resolved round: 
+RESOLVED_ROUND_MODEL = 'apprentice_key'
+cnapi = CustomNumerAPI()
+try:
+    round_status = pd.DataFrame(cnapi.get_round_performances(RESOLVED_ROUND_MODEL)).set_index("roundNumber")
+    last_resolved_round = round_status[round_status.roundResolved==True].index.max()
+except TypeError as E:
+    # Catch when numerais API is down (happens sometimes) and approximate it
+    round_numbers = np.unique(df_model_score.roundNumber)
+    last_resolved_round = round_numbers[-5]
+    
+
 score_dfs = pd.concat(score_dfs)
+
+if show_only_resolved_rounds:
+    score_dfs = score_dfs[score_dfs.roundNumber <= last_resolved_round]
 
 round_start_calc = st.slider(
     'Select starting round to calculate returns.', 
@@ -215,6 +204,12 @@ score_dfs = score_dfs[score_dfs['roundNumber']>=round_start_calc]
 score_dfs['corr_cumsum'] = score_dfs.groupby(['model'])['correlation'].cumsum()
 score_dfs['mmc_cumsum'] = score_dfs.groupby(['model'])['mmc'].cumsum()
 score_dfs['returns_cumsum'] = score_dfs.groupby(['model'])['returns'].cumsum()
+score_dfs['group_size'] = score_dfs.groupby(['model'])['roundNumber'].transform('count')
+score_dfs['returns_corr'] = 2 * score_dfs['corr_cumsum']
+score_dfs['returns_mmc'] = mmc_multi * score_dfs['mmc_cumsum']
+score_dfs['returns_corr_per_round'] = score_dfs['returns_corr']  / score_dfs['group_size']
+score_dfs['returns_mmc_per_round'] = score_dfs['returns_mmc']  / score_dfs['group_size']
+
 
 returns_plot = px.line(
     score_dfs, 
@@ -229,7 +224,6 @@ corr_score_plot = px.line(
     y = 'corr_cumsum' if cum_corr else 'correlation',
     color = 'model'
 )
-
 
 mmc_score_plot = px.line(
     score_dfs, 
@@ -259,20 +253,33 @@ melted = melted[melted.variable.isin(['mmc', 'correlation'])]
 melted['color_idx'] = melted.groupby(['model', 'variable']).ngroup()
 melted['color'] = melted['color_idx'].apply(lambda x: colors[x])
 
+# Current returns
 corr_mmc_bar = go.Figure()
 for i, model in enumerate(selected_models):
     melted_tmp = melted[melted.model==model]
-    corr_mmc_bar.add_trace(go.Bar(
+    corr_mmc_bar.add_trace(
+        go.Bar(
         x=melted_tmp.roundNumber,
         y=melted_tmp.value,
         text=melted_tmp.variable,
         name=model,
         textposition='none',
         marker_color=melted_tmp.color
-    )
+        )
     )
 
-st.subheader(f'Correlation and MMC per Round per Model')
+# Cummulative returns
+curr_returns_df = score_dfs.groupby('model').tail(1)
+if cum_corr:
+    curr_returns_plot = px.bar(curr_returns_df, x="model", y=["returns_corr", "returns_mmc"])
+else:
+    curr_returns_plot = px.bar(curr_returns_df, x="model", y=["returns_corr_per_round", "returns_mmc_per_round"])
+
+# Plots
+st.subheader('Cumulative returns per Model' if cum_corr else 'Average returns per round per model')
+st.plotly_chart(curr_returns_plot)
+
+st.subheader(f'Correlation and MMC per Round per model')
 st.plotly_chart(corr_mmc_bar)
 
 st.subheader(f'{"Cumulative r" if cum_corr else "R"}eturns after round {round_start_calc}')
@@ -283,3 +290,25 @@ st.plotly_chart(corr_score_plot)
 
 st.subheader(f'{"Cumulative " if cum_corr else ""}MMC after round {round_start_calc}')
 st.plotly_chart(mmc_score_plot)
+
+## Reputation
+st.header('Reputation')
+st.subheader('Motivation')
+st.write(
+    '''
+    Long term performance is key.
+    While your payouts depend on your performance in a single round, your reputation and rank depends on your performance over 20 rounds. However, this metric is a bit hard to understand and this is why it appears at the bottom of this dashboard.
+    '''
+)
+st.subheader('Calculation')
+st.write(
+    '''
+    Your reputation for `corr` and `mmc` on round n is a weighted average of that metric over the past 20 rounds including rounds that are currently resolving.
+    '''
+)
+
+st.write('### Correlation Reputation')
+st.plotly_chart(corr_rep_plot)
+
+st.write('### MMC Reputation')
+st.plotly_chart(mmc_rep_plot)
